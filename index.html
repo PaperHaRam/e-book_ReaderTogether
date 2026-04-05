@@ -6,83 +6,60 @@
     <title>Reading Sync Reader</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
-        * { box-sizing: border-box; }
         body { 
-            font-family: sans-serif; 
-            background-color: #121212 !important; 
-            color: #ffffff !important; 
-            margin: 0; 
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
+            font-family: sans-serif; background: #121212; color: white; 
+            margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh;
         }
-        .container {
-            width: 100%;
-            max-width: 600px;
-            text-align: center;
+        .player-bar { 
+            background: #1e1e1e; padding: 25px 40px; border-radius: 60px; 
+            display: flex; align-items: center; gap: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.6);
         }
-        #status { color: #f1c40f; margin-bottom: 20px; font-weight: bold; min-height: 1.2em; }
-        
-        /* 재생 바 스타일 */
-        .player-bar {
-            background: #1e1e1e;
-            padding: 15px;
-            border-radius: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: space-around;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        input { 
+            background: transparent; border: none; border-bottom: 2px solid #333; 
+            color: #3498db; font-size: 1.3rem; width: 90px; text-align: center; outline: none;
         }
-        input {
-            background: #2a2a2a;
-            border: 1px solid #444;
-            color: #3498db;
-            font-size: 1.2rem;
-            width: 100px;
-            padding: 8px;
-            border-radius: 20px;
-            text-align: center;
-            outline: none;
+        .controls { display: flex; gap: 20px; border-left: 1px solid #333; padding-left: 30px; }
+        .btn-unit { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .light { width: 30px; height: 6px; background: #222; border-radius: 3px; }
+        .btn { 
+            background: none; border: none; color: #333; font-size: 2.2rem; 
+            cursor: pointer; transition: 0.2s; padding: 0;
         }
-        .controls {
-            display: flex;
-            gap: 10px;
-        }
-        .btn {
-            background: #222;
-            border: none;
-            color: #444;
-            width: 55px;
-            height: 55px;
-            border-radius: 50%;
-            font-size: 1.4rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: 0.2s;
-        }
-        .btn.active { background: #333; color: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
-        .btn-s.active { color: #e74c3c; box-shadow: 0 0 10px #e74c3c; }
+        /* 상태별 색상 */
+        .h-active { background: #3498db !important; } /* 호스트: 파랑 */
+        .r-active { background: #2ecc71 !important; } /* 리딩러: 녹색 */
+        .main-active { color: #eee !important; }
+        #status { position: absolute; top: 30px; color: #f1c40f; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div id="status">코드를 입력하고 엔터를 누르세요</div>
+    <div id="status">CODE 입력 후 ENTER</div>
+    
+    <div class="player-bar">
+        <input type="text" id="code" placeholder="CODE" maxlength="6" onkeydown="if(event.keyCode==13) connect()">
         
-        <div class="player-bar">
-            <input type="text" id="code" placeholder="CODE" maxlength="6" onkeydown="if(event.keyCode==13) connect()">
-            <div class="controls">
-                <button id="btn-A" class="btn" onclick="send('A')">◁</button>
-                <button id="btn-S" class="btn btn-s" onclick="send('S')">II</button>
-                <button id="btn-D" class="btn" onclick="send('D')">▷</button>
-                <button id="btn-W" class="btn" onclick="send('W')">↻</button>
+        <div class="controls">
+            <div class="btn-unit">
+                <div id="h-A" class="light"></div>
+                <button id="main-A" class="btn" onclick="send('A')">◁</button>
+                <div id="r-A" class="light"></div>
+            </div>
+            <div class="btn-unit">
+                <div id="h-S" class="light"></div>
+                <button id="main-S" class="btn" onclick="send('S')">II</button>
+                <div id="r-S" class="light"></div>
+            </div>
+            <div class="btn-unit">
+                <div id="h-D" class="light"></div>
+                <button id="main-D" class="btn" onclick="send('D')">▷</button>
+                <div id="r-D" class="light"></div>
+            </div>
+            <div class="btn-unit">
+                <div id="h-W" class="light"></div>
+                <button id="main-W" class="btn" onclick="send('W')">↻</button>
+                <div id="r-W" class="light"></div>
             </div>
         </div>
-        <p style="font-size: 0.8rem; color: #555; margin-top: 20px;">키보드 A, S, D, W 키를 사용하세요.</p>
     </div>
 
     <script>
@@ -91,12 +68,9 @@
 
         async function connect() {
             const code = document.getElementById('code').value;
-            if(!code) return alert("코드를 입력하세요.");
-            
             const topic = `p2p_reading/${code}`;
             const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
-            
-            document.getElementById('status').innerText = "연결 시도 중 (호스트 응답 대기)...";
+            document.getElementById('status').innerText = "호스트 찾는 중...";
 
             client.on('connect', () => {
                 client.subscribe(topic);
@@ -118,28 +92,32 @@
 
         pc.ondatachannel = (e) => {
             dc = e.channel;
-            dc.onopen = () => {
-                document.getElementById('status').innerText = "● 연결 완료 (CONNECTED)";
-                document.getElementById('status').style.color = "#2ecc71";
-            };
+            dc.onopen = () => { document.getElementById('status').innerText = "CONNECTED"; document.getElementById('status').style.color = "#2ecc71"; };
+            // 중요: 호스트의 상태 변화도 웹에서 받아보고 싶다면 호스트가 메시지를 보내줘야 함 (현재는 입력 전송 위주)
         };
 
         function send(key) {
             if (dc && dc.readyState === 'open') {
                 dc.send(JSON.stringify({key: key}));
-                visualize(key);
+                visualize('reader', key);
             }
         }
 
-        function visualize(key) {
+        function visualize(user, key) {
             if(key === 'W') { resetUI(); return; }
-            const btn = document.getElementById('btn-' + key);
-            btn.classList.add('active');
+            
+            const light = document.getElementById((user === 'host' ? 'h-' : 'r-') + key);
+            const main = document.getElementById('main-' + key);
+            
+            light.classList.add(user === 'host' ? 'h-active' : 'r-active');
+            main.classList.add('main-active');
+            
             if(key === 'S') setTimeout(resetUI, 1000);
         }
 
         function resetUI() {
-            document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.light').forEach(l => { l.classList.remove('h-active'); l.classList.remove('r-active'); });
+            document.querySelectorAll('.btn').forEach(b => b.classList.remove('main-active'));
         }
 
         window.addEventListener('keydown', (e) => {
