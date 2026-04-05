@@ -2,33 +2,87 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Reading Sync Bar</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reading Sync Reader</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh; }
-        .player-bar { background: #1e1e1e; padding: 20px 40px; border-radius: 50px; display: flex; align-items: center; gap: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        input { background: transparent; border: none; border-bottom: 2px solid #333; color: #3498db; font-size: 1.2rem; width: 80px; text-align: center; outline: none; transition: 0.3s; }
-        input:focus { border-bottom-color: #3498db; }
-        .controls { display: flex; gap: 15px; border-left: 1px solid #333; padding-left: 20px; }
-        .btn { background: #222; border: none; color: #555; width: 60px; height: 60px; border-radius: 50%; font-size: 1.5rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
-        .btn:active { transform: scale(0.9); }
-        .btn.active { background: #333; color: #2ecc71; box-shadow: 0 0 15px rgba(46, 204, 113, 0.3); }
-        .btn-s.active { color: #e74c3c; box-shadow: 0 0 15px rgba(231, 76, 60, 0.3); }
-        #status { position: absolute; top: 20px; font-size: 0.8rem; color: #f1c40f; }
-    </script>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: sans-serif; 
+            background-color: #121212 !important; 
+            color: #ffffff !important; 
+            margin: 0; 
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+        #status { color: #f1c40f; margin-bottom: 20px; font-weight: bold; min-height: 1.2em; }
+        
+        /* 재생 바 스타일 */
+        .player-bar {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        input {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #3498db;
+            font-size: 1.2rem;
+            width: 100px;
+            padding: 8px;
+            border-radius: 20px;
+            text-align: center;
+            outline: none;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            background: #222;
+            border: none;
+            color: #444;
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            font-size: 1.4rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+        }
+        .btn.active { background: #333; color: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
+        .btn-s.active { color: #e74c3c; box-shadow: 0 0 10px #e74c3c; }
+    </style>
 </head>
 <body>
-    <div id="status">코드를 입력하고 ENTER를 누르세요</div>
-    
-    <div class="player-bar">
-        <input type="text" id="code" placeholder="CODE" maxlength="6" onkeydown="if(event.keyCode==13) connect()">
+    <div class="container">
+        <div id="status">코드를 입력하고 엔터를 누르세요</div>
         
-        <div class="controls">
-            <button id="btn-A" class="btn" onclick="send('A')">◁</button>
-            <button id="btn-S" class="btn btn-s" onclick="send('S')">II</button>
-            <button id="btn-D" class="btn" onclick="send('D')">▷</button>
-            <button id="btn-W" class="btn" onclick="send('W')">↻</button>
+        <div class="player-bar">
+            <input type="text" id="code" placeholder="CODE" maxlength="6" onkeydown="if(event.keyCode==13) connect()">
+            <div class="controls">
+                <button id="btn-A" class="btn" onclick="send('A')">◁</button>
+                <button id="btn-S" class="btn btn-s" onclick="send('S')">II</button>
+                <button id="btn-D" class="btn" onclick="send('D')">▷</button>
+                <button id="btn-W" class="btn" onclick="send('W')">↻</button>
+            </div>
         </div>
+        <p style="font-size: 0.8rem; color: #555; margin-top: 20px;">키보드 A, S, D, W 키를 사용하세요.</p>
     </div>
 
     <script>
@@ -37,14 +91,16 @@
 
         async function connect() {
             const code = document.getElementById('code').value;
+            if(!code) return alert("코드를 입력하세요.");
+            
             const topic = `p2p_reading/${code}`;
             const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
             
-            document.getElementById('status').innerText = "접속 시도 중...";
+            document.getElementById('status').innerText = "연결 시도 중 (호스트 응답 대기)...";
 
             client.on('connect', () => {
                 client.subscribe(topic);
-                client.publish(topic, JSON.stringify({type: "join"})); // 호스트에게 알림
+                client.publish(topic, JSON.stringify({type: "join"}));
             });
 
             client.on('message', async (t, msg) => {
@@ -63,7 +119,7 @@
         pc.ondatachannel = (e) => {
             dc = e.channel;
             dc.onopen = () => {
-                document.getElementById('status').innerText = "CONNECTED";
+                document.getElementById('status').innerText = "● 연결 완료 (CONNECTED)";
                 document.getElementById('status').style.color = "#2ecc71";
             };
         };
@@ -76,10 +132,7 @@
         }
 
         function visualize(key) {
-            if(key === 'W') {
-                resetUI();
-                return;
-            }
+            if(key === 'W') { resetUI(); return; }
             const btn = document.getElementById('btn-' + key);
             btn.classList.add('active');
             if(key === 'S') setTimeout(resetUI, 1000);
